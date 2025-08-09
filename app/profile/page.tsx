@@ -310,10 +310,10 @@ export default function ProfilePage() {
                     </Button>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <Link href="/" className="flex items-center gap-2">
-                        <CircleDollarSign className="h-8 w-8 text-primary" />
-                        <span className="text-2xl font-bold">TrackSmart</span>
+                    <Link href='/' className="p-1.5 sm:p-2 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg sm:rounded-xl shadow-lg">
+                        <CircleDollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                     </Link>
+                    <span className="text-2xl font-bold">TrackSmart</span>
                 </div>
             </header>
             <main className="flex flex-1 flex-col gap-4 p-4 md:p-6">

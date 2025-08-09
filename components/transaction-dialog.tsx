@@ -44,8 +44,8 @@ const validateTransaction = (data: any): { isValid: boolean; errors: ValidationE
   }
 
   const amount = Number(data.amount);
-  if (!amount || amount <= 0) {
-    errors.amount = "Amount must be positive.";
+  if (!amount || amount <= 0 || isNaN(amount)) {
+    errors.amount = "Amount must be a valid positive number.";
   }
 
   if (!data.date || !(data.date instanceof Date)) {
@@ -151,16 +151,21 @@ export function TransactionDialog({
     }
 
     setErrors({});
+
+    // Ensure amount is converted to number
+    const processedData = {
+      ...data,
+      amount: Number(data.amount),
+      date: data.date.toISOString(),
+      currency: currentCurrency,
+    };
+
     if (isEdit && onUpdateTransaction && editTransaction) {
       if (editTransaction.id) {
         onUpdateTransaction(
           editTransaction.id,
           editTransaction.profile,
-          {
-            ...data,
-            date: data.date.toISOString(),
-            currency: currentCurrency,
-          }
+          processedData
         );
       } else {
         toast({
@@ -174,11 +179,7 @@ export function TransactionDialog({
         description: `${data.description} was successfully updated.`,
       });
     } else if (onAddTransaction) {
-      onAddTransaction({
-        ...data,
-        date: data.date.toISOString(),
-        currency: currentCurrency,
-      });
+      onAddTransaction(processedData);
       toast({
         title: "Transaction Added",
         description: `${data.description} was successfully added.`,
@@ -238,7 +239,7 @@ export function TransactionDialog({
                   <RadioGroupItem value="income" id="income" className="peer sr-only" />
                   <Label
                     htmlFor="income"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 peer-data-[state=checked]:border-emerald-400 peer-data-[state=checked]:bg-emerald-50 peer-data-[state=checked]:text-emerald-700 [&:has([data-state=checked])]:border-emerald-400 [&:has([data-state=checked])]:bg-emerald-50 [&:has([data-state=checked])]:text-emerald-700 cursor-pointer transition-colors"
                   >
                     Income
                   </Label>
@@ -247,7 +248,7 @@ export function TransactionDialog({
                   <RadioGroupItem value="expense" id="expense" className="peer sr-only" />
                   <Label
                     htmlFor="expense"
-                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
+                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 peer-data-[state=checked]:border-rose-400 peer-data-[state=checked]:bg-rose-50 peer-data-[state=checked]:text-rose-700 [&:has([data-state=checked])]:border-rose-400 [&:has([data-state=checked])]:bg-rose-50 [&:has([data-state=checked])]:text-rose-700 cursor-pointer transition-colors"
                   >
                     Expense
                   </Label>
@@ -260,7 +261,17 @@ export function TransactionDialog({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">Amount</Label>
-              <Input id="amount" type="number" step="0.01" {...form.register("amount")} placeholder="$0.00" />
+              <Input
+                id="amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                {...form.register("amount", {
+                  valueAsNumber: true,
+                  min: 0.01
+                })}
+                placeholder="0.00"
+              />
               {errors.amount && <p className="text-sm font-medium text-destructive">{errors.amount}</p>}
             </div>
             <div className="space-y-2">
@@ -320,11 +331,11 @@ export function TransactionDialog({
             />
             {/* Suggestions dropdown */}
             {showCategorySuggestions && categoryInput && categorySuggestions.length > 0 && (
-              <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded shadow max-h-40 overflow-auto">
+              <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-auto">
                 {categorySuggestions.map((cat, idx) => (
                   <div
                     key={cat + idx}
-                    className="px-3 py-2 cursor-pointer hover:bg-teal-50"
+                    className="px-3 py-2 cursor-pointer hover:bg-teal-50 hover:text-teal-700 transition-colors"
                     onMouseDown={e => {
                       e.preventDefault();
                       setCategoryInput(cat);

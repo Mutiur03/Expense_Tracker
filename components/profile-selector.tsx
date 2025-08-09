@@ -31,6 +31,8 @@ import { useState } from "react";
 import { ProfileManagementDialog } from "./profile-management-dialog";
 import { useToast } from "../hooks/use-toast";
 import type { ProfileConfig } from "../lib/types";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 
 interface ProfileSelectorProps {
     profiles: ProfileConfig[];
