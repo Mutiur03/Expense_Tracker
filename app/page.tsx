@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '../components/ui/button';
 import { ArrowRight, CircleDollarSign, BarChart, Shield, User, LogOut, Loader2, ChevronDown, Plus, Minus, Star, Check, TrendingUp, DollarSign, PieChart, Clock, Smartphone, Globe, Lock, Menu, X, Cloud, HardDrive } from 'lucide-react';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -27,9 +27,18 @@ export default function LandingPage() {
   const [activeTestimonial, setActiveTestimonial] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Measure fixed header height and expose as CSS var
+  const headerRef = useRef<HTMLElement | null>(null);
+  const updateHeaderHeight = () => {
+    const h = headerRef.current?.offsetHeight || 64;
+    document.documentElement.style.setProperty('--header-h', `${h}px`);
+  };
+
   useEffect(() => {
     document.documentElement.style.scrollBehavior = 'smooth';
     setIsVisible(true);
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
 
     // Auto-rotate testimonials
     const interval = setInterval(() => {
@@ -38,9 +47,15 @@ export default function LandingPage() {
 
     return () => {
       document.documentElement.style.scrollBehavior = 'auto';
+      window.removeEventListener('resize', updateHeaderHeight);
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    // Recompute height when mobile menu expands/collapses
+    updateHeaderHeight();
+  }, [mobileMenuOpen]);
 
   const handleLogout = async () => {
     try {
@@ -130,7 +145,10 @@ export default function LandingPage() {
       )}
 
       {/* Responsive Header with Mobile Menu */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-100">
+      <header
+        ref={headerRef}
+        className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-gray-100"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-3 sm:py-4">
             <div className="flex items-center gap-2 cursor-pointer group" onClick={scrollToTop}>
@@ -157,7 +175,7 @@ export default function LandingPage() {
 
               {user ? (
                 <>
-                  <Button asChild variant="ghost" size="sm" className="hover:bg-teal-50">
+                  <Button asChild size="sm" className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all">
                     <Link href="/dashboard">Dashboard</Link>
                   </Button>
                   <DropdownMenu>
@@ -260,8 +278,14 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Enhanced Hero Section - Mobile Optimized */}
-      <section className="relative pt-16 pb-12 sm:pt-20 sm:pb-16 lg:pt-24 lg:pb-20 overflow-hidden">
+      {/* Enhanced Hero Section - Fit within viewport with navbar */}
+      <section
+        className="relative overflow-hidden min-h-screen"
+        style={{
+          minHeight: 'calc(100vh - var(--header-h, 64px))',
+          paddingTop: 'var(--header-h, 64px)',
+        }}
+      >
         {/* Background Elements */}
         <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-white to-blue-50"></div>
         <div className="absolute top-0 left-0 w-full h-full">
@@ -272,7 +296,7 @@ export default function LandingPage() {
         <div className="relative max-w-7xl mx-auto px-4 py-4 sm:py-0 sm:px-6 lg:px-8">
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">
             {/* Badge - Responsive */}
-            <div className="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-teal-50 border border-teal-200 rounded-full text-teal-800 text-xs sm:text-sm mb-4 sm:mb-6 animate-fade-in">
+            <div className="inline-flex items-center px-3 py-1.5 sm:px-4 sm:py-2 bg-teal-50 border border-teal-200 rounded-full text-teal-800 text-xs sm:text-sm mb-4 sm:mb-6 animate-fade-in sm:mt-2 lg:mt-4">
               <Star className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2 text-teal-600" />
               <span className="font-medium">✨ Always 100% Free - No Hidden Costs</span>
             </div>
@@ -352,18 +376,10 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Stats - Mobile Optimized */}
-          <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-12 sm:mb-16 transition-all duration-1000 delay-1000 px-4 sm:px-0 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center p-4 sm:p-6 bg-white/80 rounded-xl sm:rounded-2xl backdrop-blur-sm border border-gray-100 hover:shadow-lg transition-all hover:-translate-y-1">
-                <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">{stat.number}</div>
-                <div className="text-gray-600 text-xs sm:text-sm lg:text-base">{stat.label}</div>
-              </div>
-            ))}
-          </div>
+          {/* Removed Stats from hero to ensure content fits viewport */}
 
           {/* Dashboard Preview - Mobile Optimized */}
-          <div className={`relative max-w-6xl mx-auto transition-all duration-1000 delay-1200 px-4 sm:px-0 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20'}`}>
+          {/* <div className={`relative max-w-6xl mx-auto transition-all duration-1000 delay-1200 px-4 sm:px-0 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20'}`}>
             <div className="relative bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl sm:rounded-2xl p-1 sm:p-2 shadow-2xl">
               <div className="bg-white rounded-lg sm:rounded-xl overflow-hidden">
                 <img
@@ -372,12 +388,13 @@ export default function LandingPage() {
                   className="w-full h-auto"
                 />
               </div>
-              {/* Floating elements - Hidden on mobile for cleaner look */}
+
               <div className="hidden sm:block absolute -top-4 sm:-top-6 -left-4 sm:-left-6 bg-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-lg border">
                 <div className="flex items-center gap-1 sm:gap-2">
                   <div className="w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full"></div>
                   <span className="text-xs sm:text-sm font-medium">Always Free</span>
                 </div>
+
               </div>
               <div className="hidden sm:block absolute -bottom-4 sm:-bottom-6 -right-4 sm:-right-6 bg-teal-500 text-white rounded-lg sm:rounded-xl p-2 sm:p-4 shadow-lg">
                 <div className="flex items-center gap-1 sm:gap-2">
@@ -386,64 +403,36 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </section>
 
-      {/* Social Proof / Testimonials - Mobile Optimized */}
-      <section id="testimonials" className="py-12 sm:py-16 lg:py-20 bg-gray-50">
+      {/* Stats - moved outside hero so hero+navbar fit exactly in viewport */}
+      <section
+        aria-label="stats"
+        className="bg-white"
+        style={{ scrollMarginTop: 'var(--header-h, 64px)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
-              Loved by Users Worldwide
-            </h2>
-            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              See how TrackSmart is helping people take control of their finances - completely free
-            </p>
-          </div>
-
-          <div className="relative max-w-4xl mx-auto">
-            <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 lg:p-12 shadow-xl">
-              <div className="text-center">
-                <div className="flex justify-center mb-3 sm:mb-4">
-                  {[...Array(testimonials[activeTestimonial].rating)].map((_, i) => (
-                    <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <blockquote className="text-lg sm:text-xl lg:text-2xl text-gray-700 mb-4 sm:mb-6 leading-relaxed">
-                  "{testimonials[activeTestimonial].text}"
-                </blockquote>
-                <div className="flex items-center justify-center">
-                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 mr-3 sm:mr-4">
-                    <AvatarFallback className="bg-teal-500 text-white text-sm sm:text-base">
-                      {testimonials[activeTestimonial].avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-left">
-                    <div className="font-semibold text-gray-900 text-sm sm:text-base">{testimonials[activeTestimonial].name}</div>
-                    <div className="text-gray-600 text-xs sm:text-sm">{testimonials[activeTestimonial].role}</div>
-                  </div>
-                </div>
+          <div className={`grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 my-12 sm:my-16 transition-all duration-1000 delay-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            {stats.map((stat, index) => (
+              <div key={index} className="text-center p-4 sm:p-6 bg-white/80 rounded-xl sm:rounded-2xl backdrop-blur-sm border border-gray-100 hover:shadow-lg transition-all hover:-translate-y-1">
+                <div className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-900 mb-1 sm:mb-2">{stat.number}</div>
+                <div className="text-gray-600 text-xs sm:text-sm lg:text-base">{stat.label}</div>
               </div>
-            </div>
-
-            {/* Testimonial indicators - Touch friendly */}
-            <div className="flex justify-center mt-4 sm:mt-6 space-x-2">
-              {testimonials.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setActiveTestimonial(index)}
-                  className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full transition-all touch-manipulation ${activeTestimonial === index ? 'bg-teal-500 scale-110' : 'bg-gray-300 hover:bg-gray-400'
-                    }`}
-                />
-              ))}
-            </div>
+            ))}
           </div>
         </div>
       </section>
+
+      
 
       {/* Features Section - Mobile Enhanced */}
-      <section id="features" className="py-12 sm:py-16 lg:py-20 bg-white">
+      <section
+        id="features"
+        className="py-12 sm:py-16 lg:py-20 bg-white"
+        style={{ scrollMarginTop: 'var(--header-h, 64px)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
@@ -506,8 +495,68 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Social Proof / Testimonials - Mobile Optimized */}
+      <section
+        id="testimonials"
+        className="py-12 sm:py-12 lg:py-26 bg-gray-50 min-h-screen"
+        style={{ scrollMarginTop: 'var(--header-h, 64px)' }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
+              Loved by Users Worldwide
+            </h2>
+            <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
+              See how TrackSmart is helping people take control of their finances - completely free
+            </p>
+          </div>
+
+          <div className="relative max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 lg:p-12 shadow-xl">
+              <div className="text-center">
+                <div className="flex justify-center mb-3 sm:mb-4">
+                  {[...Array(testimonials[activeTestimonial].rating)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-400 fill-current" />
+                  ))}
+                </div>
+                <blockquote className="text-lg sm:text-xl lg:text-2xl text-gray-700 mb-4 sm:mb-6 leading-relaxed">
+                  "{testimonials[activeTestimonial].text}"
+                </blockquote>
+                <div className="flex items-center justify-center">
+                  <Avatar className="h-10 w-10 sm:h-12 sm:w-12 mr-3 sm:mr-4">
+                    <AvatarFallback className="bg-teal-500 text-white text-sm sm:text-base">
+                      {testimonials[activeTestimonial].avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="text-left">
+                    <div className="font-semibold text-gray-900 text-sm sm:text-base">{testimonials[activeTestimonial].name}</div>
+                    <div className="text-gray-600 text-xs sm:text-sm">{testimonials[activeTestimonial].role}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Testimonial indicators - Touch friendly */}
+            <div className="flex justify-center mt-4 sm:mt-6 space-x-2">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveTestimonial(index)}
+                  className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full transition-all touch-manipulation ${activeTestimonial === index ? 'bg-teal-500 scale-110' : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works - Mobile Enhanced */}
-      <section id="how-it-works" className="py-12 sm:py-16 lg:py-20 bg-gradient-to-br from-teal-50 to-blue-50">
+      <section
+        id="how-it-works"
+        className="py-12 sm:py-16 lg:py-20 bg-gradient-to-br from-teal-50 to-blue-50"
+        style={{ scrollMarginTop: 'var(--header-h, 64px)' }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
@@ -573,7 +622,11 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section - Mobile Enhanced */}
-      <section id="faq" className="py-12 sm:py-16 lg:py-20 bg-white">
+      <section
+        id="faq"
+        className="py-12 sm:py-16 lg:py-20 bg-white"
+        style={{ scrollMarginTop: 'var(--header-h, 64px)' }}
+      >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
