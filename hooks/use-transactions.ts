@@ -46,9 +46,11 @@ export function useTransactions() {
   const [isLoading, setIsLoading] = useState(false);
   const [needsInitialization, setNeedsInitialization] = useState(false);
   const dataService = DataService.getInstance();
+
   useEffect(() => {
     dataService.setUserId(user?.uid || null);
   }, [user, dataService]);
+
   useEffect(() => {
     if (authLoading || !user || authInProgress) return;
     const checkInitialization = async () => {
@@ -64,98 +66,110 @@ export function useTransactions() {
     };
     checkInitialization();
   }, [user, authLoading, authInProgress, dataService]);
+
   const initializeUserData = useCallback(async () => {
     if (!user || !needsInitialization) return;
     try {
-      const localProfiles = localStorage.getItem("expense-tracker-profiles");
-      if (profiles) {
-        const parsedProfiles = JSON.parse(localProfiles || "[]");
-        setProfiles(parsedProfiles);
-      } else {
-        setProfiles(defaultProfiles);
-      }
-      const storedCurrentProfile = localStorage.getItem(
-        "expense-tracker-current-profile"
-      );
-      if (
-        storedCurrentProfile &&
-        profiles.find((p) => p.id === storedCurrentProfile)
-      ) {
-        setCurrentProfile(storedCurrentProfile);
-      } else if (profiles.length > 0) {
-        setCurrentProfile(profiles[0].id);
-      } else {
-        setCurrentProfile("personal");
-      }
-      const storedTransactions = localStorage.getItem(
-        "expense-tracker-transactions"
-      );
-      let transactions: Record<Profile, Transaction[]> = {};
-      if (storedTransactions) {
-        transactions = JSON.parse(storedTransactions);
-      }
-      const initData: UserInitData = {
-        profiles: profiles || defaultProfiles,
-        currentProfile: currentProfile || "personal",
-        transactions: transactions || {},
-      };
-      defaultProfiles.forEach((profile) => {
-        initData.transactions[profile.id] = [];
+      // Read local data safely
+      const localProfilesRaw =
+        typeof window !== "undefined"
+          ? localStorage.getItem("expense-tracker-profiles")
+          : null;
+      const localTxRaw =
+        typeof window !== "undefined"
+          ? localStorage.getItem("expense-tracker-transactions")
+          : null;
+      const localCurrentProfile =
+        typeof window !== "undefined"
+          ? localStorage.getItem("expense-tracker-current-profile")
+          : null;
+
+      const parsedProfiles: ProfileConfig[] =
+        (localProfilesRaw && JSON.parse(localProfilesRaw)) || defaultProfiles;
+
+      // Determine current profile from local or default
+      const resolvedCurrentProfile: Profile =
+        (localCurrentProfile &&
+          parsedProfiles.find((p) => p.id === localCurrentProfile)?.id) ||
+        parsedProfiles[0]?.id ||
+        "personal";
+
+      // Read transactions map
+      const parsedTransactions: Record<Profile, Transaction[]> =
+        (localTxRaw && JSON.parse(localTxRaw)) || {};
+
+      // Ensure keys exist for all profiles
+      parsedProfiles.forEach((p) => {
+        if (!parsedTransactions[p.id]) parsedTransactions[p.id] = [];
       });
+
+      // Update UI state right away
+      setProfiles(parsedProfiles);
+      setCurrentProfile(resolvedCurrentProfile);
+      setTransactionsByProfile(parsedTransactions);
+
+      const initData: UserInitData = {
+        profiles: parsedProfiles,
+        currentProfile: resolvedCurrentProfile,
+        transactions: parsedTransactions,
+      };
+
       await dataService.initializeUserData(initData);
       setNeedsInitialization(false);
     } catch (error) {
       console.error("Error initializing user data:", error);
     }
   }, [user, needsInitialization, dataService]);
+
   useEffect(() => {
     if (authLoading || authInProgress) return;
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // Ensure any local data is migrated before fetching
+        await dataService.migrateLocalDataToFirestore();
+
         if (needsInitialization) {
           await initializeUserData();
         }
+
         const storedProfiles = await dataService.getProfiles();
-        console.log("Loaded profiles from Firestore:", storedProfiles);
         if (storedProfiles.length > 0) {
           setProfiles(storedProfiles);
           const storedCurrentProfile = await dataService.getCurrentProfile();
-          console.log("Stored current profile:", storedCurrentProfile);
-          let profileToSet = "personal";
+          let profileToSet: Profile = "personal";
           if (
             storedCurrentProfile &&
             storedProfiles.find((p) => p.id === storedCurrentProfile)
           ) {
-            profileToSet = storedCurrentProfile;
+            profileToSet = storedCurrentProfile as Profile;
           } else if (storedProfiles.length > 0) {
-            profileToSet = storedProfiles[0].id;
+            profileToSet = storedProfiles[0].id as Profile;
           }
-          console.log("Setting current profile to:", profileToSet);
           setCurrentProfile(profileToSet);
-          console.log("Loading all profile currencies...");
         } else {
+          // Seed defaults in absence of profiles
           const initData: UserInitData = {
             profiles: defaultProfiles,
             currentProfile: defaultProfiles[0].id,
             transactions: {},
           };
-          console.log("No profiles found, using defaults");
-          dataService.initializeUserData(initData);
+          await dataService.initializeUserData(initData);
           setProfiles(defaultProfiles);
-          setCurrentProfile("personal");
+          setCurrentProfile(defaultProfiles[0].id as Profile);
         }
-        const storedTransactions = await dataService.getTransactions();
-        console.log("Loaded transactions from Firestore:", storedTransactions);
 
+        const storedTransactions = await dataService.getTransactions();
         if (Object.keys(storedTransactions).length > 0) {
-          setTransactionsByProfile(storedTransactions);
+          setTransactionsByProfile(
+            storedTransactions as Record<Profile, Transaction[]>
+          );
         } else {
           const initialData: Record<Profile, Transaction[]> = {};
           const profilesToUse =
             storedProfiles.length > 0 ? storedProfiles : defaultProfiles;
           profilesToUse.forEach((profile) => {
-            initialData[profile.id] = [];
+            initialData[profile.id as Profile] = [];
           });
           setTransactionsByProfile(initialData);
         }
@@ -163,10 +177,9 @@ export function useTransactions() {
         console.error("Failed to load data", error);
         setProfiles(defaultProfiles);
         setCurrentProfile("personal");
-
         const initialData: Record<Profile, Transaction[]> = {};
         defaultProfiles.forEach((profile) => {
-          initialData[profile.id] = [];
+          initialData[profile.id as Profile] = [];
         });
         setTransactionsByProfile(initialData);
       } finally {
@@ -183,7 +196,9 @@ export function useTransactions() {
     authInProgress,
     needsInitialization,
     initializeUserData,
+    dataService,
   ]);
+
   const switchProfile = useCallback(
     async (profile: Profile) => {
       console.log("Switching to profile:", profile);

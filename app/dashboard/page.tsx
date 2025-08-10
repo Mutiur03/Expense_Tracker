@@ -35,8 +35,8 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/context/authContext";
 import { CURRENCIES, Currency, DEFAULT_CURRENCY, formatCurrency, getCurrencyByCode } from "@/lib/currency";
-import { DataService } from "@/lib/data-service";
 import { Label } from "@/components/ui/label";
+
 
 export default function DashboardPage() {
   const {
@@ -60,7 +60,7 @@ export default function DashboardPage() {
     type: "all",
     searchTerm: "",
   });
-  const { setUser } = useAuth();
+  const { user } = useAuth();
   const [currentCurrency, setCurrentCurrency] = useState<Currency>(DEFAULT_CURRENCY);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -70,7 +70,6 @@ export default function DashboardPage() {
     direction: "desc",
   });
   const router = useRouter();
-  const { user, loading } = useAuth();
 
 
   const mergedTransactions = useMemo(() => {
@@ -167,26 +166,19 @@ export default function DashboardPage() {
       setCurrentCurrency(DEFAULT_CURRENCY);
     }
   }, [currentProfile, profiles]);
+
   const handleCurrencyChange = async (value: string) => {
-    const selectedCurrency = CURRENCIES.find(c => c.code === value);
+    const selectedCurrency = getCurrencyByCode(value);
     if (!selectedCurrency) return;
     setCurrentCurrency(selectedCurrency);
     if (currentProfile) {
-      const dataService = DataService.getInstance();
+      // Delegate currency update to hook/DataService
       try {
-        await dataService.updateProfile(currentProfile, { currency: selectedCurrency.code });
-      } catch (error) {
-
-      }
-
-      const localProfiles = JSON.parse(localStorage.getItem('expense-tracker-profiles') || '[]');
-      const profileIndex = localProfiles.findIndex((p: any) => p.id === currentProfile);
-      if (profileIndex !== -1) {
-        localProfiles[profileIndex].currency = selectedCurrency.code;
-        localStorage.setItem('expense-tracker-profiles', JSON.stringify(localProfiles));
+        await updateProfileCurrency(currentProfile, selectedCurrency.code);
+      } catch {
+        // ignore UI errors
       }
     }
-
   };
 
 
@@ -354,16 +346,16 @@ export default function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-gradient-to-br from-teal-50/30 to-blue-50/20">
       {/* Mobile-Optimized Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/95 backdrop-blur-xl border-r border-teal-200/60 shadow-xl transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white backdrop-blur-xl border-r border-teal-200/60 shadow-xl transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex h-14 sm:h-16 items-center gap-2 sm:gap-3 px-4 sm:px-6 border-b border-teal-200/60">
-          <Link  href='/' className="p-1.5 sm:p-2 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg sm:rounded-xl shadow-lg">
+          <Link href='/' className="p-1.5 sm:p-2 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg sm:rounded-xl shadow-lg">
             <CircleDollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
           </Link>
           <div className="min-w-0 flex-1">
             <h1 className="font-bold text-base sm:text-lg bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent truncate">
               TrackSmart
             </h1>
-            <p className="text-xs text-teal-600/70 hidden sm:block">Financial Dashboard</p>
+            <p className="text-xs text-teal-800 hidden sm:block">Financial Dashboard</p>
           </div>
           {/* Mobile close button */}
           <Button
@@ -462,7 +454,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <div className="flex-1 lg:ml-64 min-w-0">
         {/* Mobile-Optimized Header */}
-        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white/90 backdrop-blur-xl border-b border-teal-200/60 shadow-sm">
+        <header className="sticky top-0 z-30 h-14 sm:h-16 bg-white backdrop-blur-xl border-b border-teal-200/60 shadow-sm">
           <div className="flex items-center justify-between h-full px-3 sm:px-6">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <Button
@@ -479,13 +471,13 @@ export default function DashboardPage() {
                   <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent truncate">
                     {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                   </h2>
-                  <p className="text-xs sm:text-sm text-teal-600/70 truncate">
+                  <p className="text-xs sm:text-sm text-slate-600 truncate">
                     {format(currentDate, "MMMM yyyy")}
                   </p>
                 </div>
 
                 {/* Compact Month Navigator for Mobile */}
-                <div className="flex items-center gap-0 sm:gap-1 bg-white/90 backdrop-blur-sm rounded-lg sm:rounded-xl border border-teal-200/60 shadow-sm">
+                <div className="flex items-center gap-0 sm:gap-1 bg-white backdrop-blur-sm rounded-lg sm:rounded-xl border border-teal-200/60 shadow-sm">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -729,15 +721,15 @@ export default function DashboardPage() {
                   {/* Mobile-First Content Layout */}
                   <div className="space-y-4 sm:space-y-6">
                     {/* Chart - Full Width on Mobile */}
-                    <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-md sm:shadow-lg">
+                    <Card className="border-0 bg-white backdrop-blur-sm shadow-md sm:shadow-lg">
                       <CardHeader className="bg-gradient-to-r from-teal-50/90 to-blue-50/90 rounded-t-lg p-4 sm:p-6">
                         <div className="flex items-center gap-2 sm:gap-3">
                           <div className="p-1.5 bg-gradient-to-br from-teal-500 to-teal-600 rounded-md">
                             <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                           </div>
                           <div>
-                            <CardTitle className="text-sm sm:text-base text-teal-700">Financial Overview</CardTitle>
-                            <CardDescription className="text-xs text-teal-600/70">
+                            <CardTitle className="text-sm sm:text-base text-teal-800">Financial Overview</CardTitle>
+                            <CardDescription className="text-xs text-slate-600">
                               {format(currentDate, "MMMM yyyy")}
                             </CardDescription>
                           </div>
@@ -755,15 +747,15 @@ export default function DashboardPage() {
                     {/* Mobile-Optimized Grid for Categories and Transactions */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       {/* Top Categories */}
-                      <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-md sm:shadow-lg">
+                      <Card className="border-0 bg-white backdrop-blur-sm shadow-md sm:shadow-lg">
                         <CardHeader className="pb-3">
                           <div className="flex items-center gap-2">
                             <div className="p-1.5 bg-gradient-to-br from-teal-500 to-teal-600 rounded-md">
                               <PieChart className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                             </div>
                             <div>
-                              <CardTitle className="text-sm sm:text-base text-teal-700">Top Categories</CardTitle>
-                              <CardDescription className="text-xs text-teal-600/70">Spending breakdown</CardDescription>
+                              <CardTitle className="text-sm sm:text-base text-teal-800">Top Categories</CardTitle>
+                              <CardDescription className="text-xs text-slate-600">Spending breakdown</CardDescription>
                             </div>
                           </div>
                         </CardHeader>
@@ -777,15 +769,15 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                               <div className="text-right flex-shrink-0 ml-2">
-                                <p className="font-bold text-teal-700 text-sm">
+                                <p className="font-bold text-teal-800 text-sm">
                                   {formatCurrency(cat.amount, currentCurrency)}
                                 </p>
                               </div>
                             </div>
                           ))}
                           {topCategories.length === 0 && (
-                            <div className="text-center py-6 text-teal-500/70">
-                              <PieChart className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            <div className="text-center py-6 text-slate-600">
+                              <PieChart className="h-8 w-8 mx-auto mb-2 opacity-60" />
                               <p className="text-sm">No expenses recorded</p>
                             </div>
                           )}
@@ -793,7 +785,7 @@ export default function DashboardPage() {
                       </Card>
 
                       {/* Recent Transactions */}
-                      <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-md sm:shadow-lg">
+                      <Card className="border-0 bg-white backdrop-blur-sm shadow-md sm:shadow-lg">
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -801,8 +793,8 @@ export default function DashboardPage() {
                                 <Receipt className="h-3 w-3 sm:h-4 sm:w-4 text-white " />
                               </div>
                               <div>
-                                <CardTitle className="text-sm sm:text-base text-teal-700">Recent Activity</CardTitle>
-                                <CardDescription className="text-xs text-teal-600/70">Latest transactions</CardDescription>
+                                <CardTitle className="text-sm sm:text-base text-teal-800">Recent Activity</CardTitle>
+                                <CardDescription className="text-xs text-slate-600">Latest transactions</CardDescription>
                               </div>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => handleTabChange('transactions')} className="text-xs h-6 text-teal-600 hover:bg-teal-50">
@@ -833,8 +825,8 @@ export default function DashboardPage() {
                             </div>
                           ))}
                           {recentTransactions.length === 0 && (
-                            <div className="text-center py-6 text-teal-500/70">
-                              <Receipt className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                            <div className="text-center py-6 text-slate-600">
+                              <Receipt className="h-8 w-8 mx-auto mb-2 opacity-60" />
                               <p className="text-sm">No transactions yet</p>
                             </div>
                           )}
@@ -846,22 +838,22 @@ export default function DashboardPage() {
               )}
 
               {activeTab === 'transactions' && (
-                <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-md sm:shadow-lg">
+                <Card className="border-0 bg-white backdrop-blur-sm shadow-md sm:shadow-lg">
                   <CardHeader className="bg-gradient-to-r from-teal-50/90 to-blue-50/90 rounded-t-lg">
                     <div className="flex items-center gap-2 sm:gap-3">
                       <div className="p-1.5 bg-gradient-to-br from-teal-500 to-teal-600 rounded-md">
                         <Receipt className="h-4 w-4 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-base sm:text-lg text-teal-700">All Transactions</CardTitle>
-                        <CardDescription className="text-xs sm:text-sm text-teal-600/70">
+                        <CardTitle className="text-base sm:text-lg text-teal-800">All Transactions</CardTitle>
+                        <CardDescription className="text-xs sm:text-sm text-slate-600">
                           {format(currentDate, "MMMM yyyy")} • {filteredAndSortedTransactions.length} transactions
                         </CardDescription>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="p-3 sm:p-6 border-b bg-teal-50/30">
+                    <div className="p-3 sm:p-6 border-b bg-teal-50">
                       <TransactionsToolbar
                         filters={filters}
                         setFilters={setFilters}
@@ -891,14 +883,14 @@ export default function DashboardPage() {
                     isLoaded={isLoaded}
                     currentCurrency={currentCurrency}
                   />
-                  <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-md sm:shadow-lg">
+                  <Card className="border-0 bg-white backdrop-blur-sm shadow-md sm:shadow-lg">
                     <CardHeader>
-                      <CardTitle className="text-base sm:text-lg text-teal-700">Advanced Analytics</CardTitle>
-                      <CardDescription className="text-xs sm:text-sm text-teal-600/70">Coming soon</CardDescription>
+                      <CardTitle className="text-base sm:text-lg text-teal-800">Advanced Analytics</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm text-slate-600">Coming soon</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-center py-8 text-teal-500/70">
-                        <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                      <div className="text-center py-8 text-slate-600">
+                        <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-60" />
                         <p className="text-sm">Advanced analytics coming soon</p>
                       </div>
                     </CardContent>
@@ -907,14 +899,14 @@ export default function DashboardPage() {
               )}
 
               {activeTab === 'budget' && (
-                <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-md sm:shadow-lg">
+                <Card className="border-0 bg-white backdrop-blur-sm shadow-md sm:shadow-lg">
                   <CardHeader>
-                    <CardTitle className="text-base sm:text-lg text-teal-700">Budget Management</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm text-teal-600/70">Set and track your spending limits</CardDescription>
+                    <CardTitle className="text-base sm:text-lg text-teal-800">Budget Management</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm text-slate-600">Set and track your spending limits</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center py-8 sm:py-12 text-teal-500/70">
-                      <Wallet className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 opacity-30" />
+                    <div className="text-center py-8 sm:py-12 text-slate-600">
+                      <Wallet className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 opacity-60" />
                       <p className="text-sm">Budget features coming soon</p>
                     </div>
                   </CardContent>
@@ -933,11 +925,11 @@ export default function DashboardPage() {
                         />
                       )}
                       <div>
-                        <h2 className="text-2xl font-bold text-teal-800">
+                        <h2 className="text-2xl font-bold text-teal-900">
                           {currentProfileData?.name || 'Current Profile'}
                         </h2>
                         {currentProfileData?.description && (
-                          <p className="text-teal-600/70 text-sm">{currentProfileData.description}</p>
+                          <p className="text-slate-600 text-sm">{currentProfileData.description}</p>
                         )}
                       </div>
                     </div>
@@ -1033,10 +1025,10 @@ export default function DashboardPage() {
                   {/* Charts and Categories */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Monthly Chart */}
-                    <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-lg">
+                    <Card className="border-0 bg-white backdrop-blur-sm shadow-lg">
                       <CardHeader>
-                        <CardTitle className="text-teal-700">Financial Trends</CardTitle>
-                        <CardDescription className="text-teal-600/70">
+                        <CardTitle className="text-teal-900">Financial Trends</CardTitle>
+                        <CardDescription className="text-slate-600">
                           Income vs Expenses • {getPeriodLabel()}
                         </CardDescription>
                       </CardHeader>
@@ -1050,10 +1042,10 @@ export default function DashboardPage() {
                     </Card>
 
                     {/* Top Categories */}
-                    <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-lg">
+                    <Card className="border-0 bg-white backdrop-blur-sm shadow-lg">
                       <CardHeader>
-                        <CardTitle className="text-teal-700">Top Spending Categories</CardTitle>
-                        <CardDescription className="text-teal-600/70">Your biggest expense categories</CardDescription>
+                        <CardTitle className="text-teal-900">Top Spending Categories</CardTitle>
+                        <CardDescription className="text-slate-600">Your biggest expense categories</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3">
                         {profileStats.topCategories.map((cat, index) => (
@@ -1062,7 +1054,7 @@ export default function DashboardPage() {
                               <div className="w-2 h-8 rounded-full bg-teal-600"></div>
                               <div>
                                 <p className="font-medium text-teal-700">{cat.category}</p>
-                                <p className="text-xs text-teal-500">
+                                <p className="text-xs text-slate-600">
                                   {profileStats.totalExpenses > 0
                                     ? `${((cat.amount / profileStats.totalExpenses) * 100).toFixed(1)}% of total`
                                     : 'No expenses'
@@ -1078,7 +1070,7 @@ export default function DashboardPage() {
                           </div>
                         ))}
                         {profileStats.topCategories.length === 0 && (
-                          <div className="text-center py-8 text-teal-500/70">
+                          <div className="text-center py-8 text-slate-600">
                             <PieChart className="h-12 w-12 mx-auto mb-3 opacity-30" />
                             <p>No expense categories found</p>
                           </div>
@@ -1088,22 +1080,22 @@ export default function DashboardPage() {
                   </div>
 
                   {/* All Transactions for Profile */}
-                  <Card className="border-0 bg-white/90 backdrop-blur-sm shadow-lg">
+                  <Card className="border-0 bg-white backdrop-blur-sm shadow-lg">
                     <CardHeader className="bg-gradient-to-r from-teal-50/90 to-blue-50/90 rounded-t-lg">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg">
                           <Receipt className="h-5 w-5 text-white" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg text-teal-700">Profile Transactions</CardTitle>
-                          <CardDescription className="text-teal-600/70">
+                          <CardTitle className="text-lg text-teal-900">Profile Transactions</CardTitle>
+                          <CardDescription className="text-slate-600">
                             {filteredTransactionsByPeriod.length} transactions • {getPeriodLabel()}
                           </CardDescription>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="p-0">
-                      <div className="p-6 border-b bg-teal-50/30">
+                      <div className="p-6 border-b bg-teal-50">
                         <TransactionsToolbar
                           filters={filters}
                           setFilters={setFilters}

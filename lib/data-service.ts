@@ -47,45 +47,43 @@ export class DataService {
 
   async initializeUserData(initData: UserInitData): Promise<void> {
     if (!this.userId) {
-      console.log("Initializing localStorage for non-authenticated user");
+      // Local initialization for non-authenticated users
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "expense-tracker-profiles",
+          JSON.stringify(initData.profiles)
+        );
+        localStorage.setItem(
+          "expense-tracker-current-profile",
+          initData.currentProfile || initData.profiles[0]?.id || "personal"
+        );
 
-      localStorage.setItem(
-        "expense-tracker-profiles",
-        JSON.stringify(initData.profiles)
-      );
-      localStorage.setItem(
-        "expense-tracker-current-profile",
-        initData.profiles[0]?.id || "personal"
-      );
-
-      const transactionsByProfile: Record<string, Transaction[]> = {};
-      for (const profile of initData.profiles) {
-        if (initData.transactions[profile.id]?.length > 0) {
-          transactionsByProfile[profile.id] = initData.transactions[profile.id];
+        const transactionsByProfile: Record<string, Transaction[]> = {};
+        for (const profile of initData.profiles) {
+          transactionsByProfile[profile.id] =
+            initData.transactions[profile.id] || [];
         }
+        localStorage.setItem(
+          "expense-tracker-transactions",
+          JSON.stringify(transactionsByProfile)
+        );
       }
-      localStorage.setItem(
-        "expense-tracker-transactions",
-        JSON.stringify(transactionsByProfile)
-      );
       return;
     }
 
     const userDocRef = this.getUserDocRef();
     await setDoc(userDocRef, {
       profiles: initData.profiles,
-
-      currentProfile: initData.profiles[0]?.id || "personal",
+      currentProfile:
+        initData.currentProfile || initData.profiles[0]?.id || "personal",
       createdAt: new Date().toISOString(),
     });
 
+    // Seed transactions if provided
     for (const profile of initData.profiles) {
-      if (initData.transactions[profile.id]?.length > 0) {
-        for (const transaction of initData.transactions[profile.id]) {
-          console.log(transaction);
-
-          await this.addTransaction(transaction);
-        }
+      const txs = initData.transactions[profile.id] || [];
+      for (const transaction of txs) {
+        await this.addTransaction(transaction);
       }
     }
   }
