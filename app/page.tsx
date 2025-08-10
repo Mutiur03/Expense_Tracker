@@ -322,7 +322,7 @@ export default function LandingPage() {
                   </button>
                 ))}
                 {user ? (
-                  <Button asChild variant="ghost" size="sm" className="justify-start">
+                  <Button asChild size="sm" className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white shadow-lg hover:shadow-xl transition-all">
                     <Link href="/dashboard">Dashboard</Link>
                   </Button>
                 ) : (

@@ -465,7 +465,9 @@ export default function DashboardPage() {
               >
                 <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-
+              <Link href='/' className="p-1.5 sm:p-2 bg-gradient-to-br from-teal-500 to-teal-600 rounded-lg sm:rounded-xl shadow-lg">
+                <CircleDollarSign className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              </Link>
               <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                 <div className="hidden sm:block min-w-0">
                   <h2 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent truncate">
